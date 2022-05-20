@@ -1,49 +1,52 @@
-project(biased_shared_ptr)
-
+project(smart_ptr)
+include(FetchContent)
 cmake_minimum_required(VERSION 3.19)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS NO)
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/MP>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/bigobj>")
 add_link_options("$<$<CXX_COMPILER_ID:MSVC>:LINKER:/DEBUG:FASTLINK>")
 enable_testing()
 
-add_library(biased_shared_ptr INTERFACE)
-target_include_directories(biased_shared_ptr INTERFACE include)
+FetchContent_Declare(googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG main)
 
-target_sources(biased_shared_ptr INTERFACE
-    include/biased_shared_ptr.h
+FetchContent_Declare(benchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG master) 
+        
+set(BENCHMARK_ENABLE_TESTING off)
+if(WIN32)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+endif()
+FetchContent_MakeAvailable(googletest benchmark)
+
+add_library(smart_ptr INTERFACE)
+target_include_directories(smart_ptr INTERFACE include)
+
+target_sources(smart_ptr INTERFACE
+    include/smart_ptr/shared_ptr.h
+    include/smart_ptr/detail/shared_counter.h
+    include/smart_ptr/detail/biased_counter.h
+    include/smart_ptr/detail/thread_traits.h
     readme.md
 )
 
-macro(group_sources path)
-    file(GLOB children RELATIVE ${PROJECT_SOURCE_DIR}/${path} ${PROJECT_SOURCE_DIR}/${path}/*)
-    foreach(child ${children})
-        if(IS_DIRECTORY ${PROJECT_SOURCE_DIR}/${path}/${child})
-            group_sources(${path}/${child})
-        else()
-            string(REPLACE "/" "\\" groupname ${path})
-            source_group(${groupname} FILES ${PROJECT_SOURCE_DIR}/${path}/${child})
-        endif()
-    endforeach()
-endmacro()
+add_executable(smart_ptr_test
+    test/shared_ptr.cpp
+)
 
-find_package(Boost)
-if(Boost_FOUND)
-    add_executable(biased_shared_ptr_test
-        test/pch.h
-        test/biased_shared_ptr.cpp
-        test/testmodule.cpp
-    )
+add_test(smart_ptr_test COMMAND smart_ptr_test)
+target_link_libraries(smart_ptr_test smart_ptr gtest_main)
+target_include_directories(smart_ptr_test PRIVATE test)
 
-    add_test(biased_shared_ptr_test COMMAND biased_shared_ptr_test)
-    target_link_libraries(biased_shared_ptr_test biased_shared_ptr Boost::boost)
-    target_include_directories(biased_shared_ptr_test PRIVATE test)
-    target_precompile_headers(biased_shared_ptr_test PRIVATE test/pch.h)
+add_executable(smart_ptr_benchmark
+    benchmark/shared_ptr.cpp
+)
 
-    if(WIN32)
-        group_sources(include)
-        group_sources(test)
-    endif()
-endif()
+target_link_libraries(smart_ptr_benchmark smart_ptr benchmark::benchmark)
+target_include_directories(smart_ptr_benchmark PRIVATE benchmark)
