@@ -8,26 +8,25 @@
 #include <smart_ptr/shared_ptr.h>
 #include <smart_ptr/detail/shared_counter.h>
 #include <smart_ptr/detail/biased_counter.h>
+#include <smart_ptr/detail/thread_counter.h>
 
 #include <gtest/gtest.h>
 #include <memory>
 
-TEST(shared_ptr_test, std)
-{
-    std::shared_ptr< int > p1(new int(1));
-    std::shared_ptr< int > p2 = p1;
-}
+using shared_ptr_types = ::testing::Types<
+    std::shared_ptr< int >,
+    smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, false > >,
+    smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > >,
+    smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t > >,
+    smart_ptr::shared_ptr< int, smart_ptr::thread_counter< uint32_t > >
+>;
 
-TEST(shared_ptr_test, shared_counter)
-{
-    smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > > p1(new int(1));
-    smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > > p2(p1);
-    smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > > p3 = p1;
-}
+template <typename T> struct shared_ptr_test: public testing::Test {};
+TYPED_TEST_SUITE(shared_ptr_test, shared_ptr_types);
 
-TEST(shared_ptr_test, biased_counter)
+TYPED_TEST(shared_ptr_test, ctor)
 {
-    smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t > > p1(new int(1));
-    smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t >> p2(p1);
-    smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t > > p3 = p1;
+    TypeParam p1(new int(1));
+    TypeParam p2(p1);
+    TypeParam p3 = p1;
 }
