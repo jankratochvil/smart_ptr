@@ -32,12 +32,14 @@ target_sources(smart_ptr INTERFACE
     include/smart_ptr/shared_ptr.h
     include/smart_ptr/detail/shared_counter.h
     include/smart_ptr/detail/biased_counter.h
+    include/smart_ptr/detail/thread_counter.h
     include/smart_ptr/detail/thread_traits.h
     readme.md
 )
 
 add_executable(smart_ptr_test
     test/shared_ptr.cpp
+    test/thread_counter.cpp
 )
 
 add_test(smart_ptr_test COMMAND smart_ptr_test)
@@ -46,6 +48,7 @@ target_include_directories(smart_ptr_test PRIVATE test)
 
 add_executable(smart_ptr_benchmark
     benchmark/shared_ptr.cpp
+    benchmark/thread_counter.cpp
 )
 
 target_link_libraries(smart_ptr_benchmark smart_ptr benchmark::benchmark)
