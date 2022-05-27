@@ -5,6 +5,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
+#pragma once
+
 #include <thread>
 
 #if defined(_WIN32)
@@ -55,7 +57,8 @@ namespace smart_ptr
 #endif
 
 #if defined(_WIN32)
-    using default_thread_traits = win32_thread_traits;
+    // using default_thread_traits = win32_thread_traits;
+    using default_thread_traits = std_thread_traits_uint32_t;
 #else
     using default_thread_traits = std_thread_traits_uint32_t;
 #endif

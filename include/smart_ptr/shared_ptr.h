@@ -8,27 +8,43 @@
 // available at: https://dl.acm.org/doi/pdf/10.1145/3243176.3243195
 //
 
+#pragma once
+
+#include <smart_ptr/detail/control_block.h>
+
 namespace smart_ptr
 {
     template < typename T, typename Counter > class shared_ptr
     {
+        template < typename T, typename Counter, typename... Args > friend shared_ptr< T, Counter > make_shared(Args&&... args);
+
     public:
         using element_type = T;
 
-        shared_ptr() = default;
-        
-        explicit shared_ptr(T* p)
-            : counter_(new Counter(1))
-            , p_(p)
+        constexpr shared_ptr() noexcept = default;
+        constexpr shared_ptr(std::nullptr_t) noexcept {}
+
+        template < typename Y > explicit shared_ptr(Y* ptr)
+            : cb_(control_block< T, Counter, std::allocator< void >, default_deleter< T > >::template allocate(
+                std::allocator< void >(), default_deleter< T >(), ptr, 1))
+        {}
+
+        template< typename Y, class Deleter > shared_ptr(Y* ptr, Deleter&& deleter)
+            : cb_(control_block< T, Counter, std::allocator< void >, Deleter >::template allocate(
+                std::allocator< void >(), std::forward< Deleter >(deleter), ptr, 1))
+        {}
+
+        template< typename Y, class Deleter, class Allocator > shared_ptr(Y* ptr, Deleter&& deleter, Allocator&& alloc)
+            : cb_(control_block< T, Counter, Allocator, Deleter >::template allocate(
+                std::forward< Allocator >(alloc), std::forward< Deleter >(deleter), ptr, 1))
         {}
 
         shared_ptr(const shared_ptr< T, Counter >& other)
-            : counter_(other.counter_)
-            , p_(other.p_)
+            : cb_(other.cb_)
         {
             increment();
         }
-        
+
         ~shared_ptr()
         {
             decrement();
@@ -37,9 +53,7 @@ namespace smart_ptr
         shared_ptr< T, Counter >& operator = (const shared_ptr< T, Counter >& other)
         {
             decrement();
-
-            counter_ = other.counter_;
-            p_ = other.p_;
+            cb_ = other.cb_;
             increment();
 
             return *this;
@@ -47,47 +61,51 @@ namespace smart_ptr
 
         T* operator ->()
         {
-            assert(p_);
-            return p_;
+            assert(cb_);
+            return cb_->ptr;
         }
 
         const T* operator ->() const
         {
-            assert(p_);
-            return p_;
+            assert(cb_);
+            return cb_->ptr;
         }
 
         T& operator *()
         {
-            assert(p_);
-            return *p_;
+            assert(cb_);
+            return cb_->ptr;
         }
 
         const T& operator *() const
         {
-            assert(p_);
-            return *p_;
+            assert(cb_);
+            return cb_->ptr;
         }
 
     private:
         void increment()
         {
-            if(counter_)
+            if(cb_)
             {
-                counter_->increment();
+                cb_->counter.increment();
             }
         }
 
         void decrement()
         {
-            if (counter_ && counter_->decrement())
+            if (cb_ && cb_->counter.decrement())
             {
-                delete counter_;
-                delete p_;
+                cb_->deallocate();
+                cb_ = nullptr;
             }
         }
-
-        T* p_{};
-        Counter* counter_{};
+        
+        control_block_base< T, Counter >* cb_{};
     };
+
+    template < typename T, typename Counter, typename... Args > shared_ptr< T, Counter > make_shared(Args&&... args)
+    {
+        return shared_ptr< T, Counter >(new T(std::forward< Args >(args)...));
+    }
 }

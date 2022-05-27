@@ -5,7 +5,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
+#pragma once
+
 #include <smart_ptr/detail/thread_traits.h>
+
+#include <array>
 
 namespace smart_ptr
 {
@@ -13,7 +17,7 @@ namespace smart_ptr
     {
         biased_counter(T ref)
             : tid_(ThreadTraits::get_current_thread_id())
-            , refs_(ref)
+            , refs_global_(ref)
             , refs_local_(ref)
         {}
 
@@ -25,7 +29,7 @@ namespace smart_ptr
             }
             else
             {
-                ++refs_;
+                ++refs_global_;
             }
         }
 
@@ -35,12 +39,12 @@ namespace smart_ptr
             {
                 if (--refs_local_ == 0)
                 {
-                    return --refs_ == 0;
+                    return --refs_global_ == 0;
                 }
             }
             else
             {
-                return --refs_ == 0;
+                return --refs_global_ == 0;
             }
 
             return false;
@@ -49,6 +53,6 @@ namespace smart_ptr
     private:
         T refs_local_;
         typename ThreadTraits::thread_id tid_;
-        std::atomic< T > refs_;
+        std::atomic< T > refs_global_;
     };
 }
