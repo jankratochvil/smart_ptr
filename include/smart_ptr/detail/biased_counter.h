@@ -15,10 +15,10 @@ namespace smart_ptr
 {
     template < typename T, typename ThreadTraits = default_thread_traits > struct biased_counter
     {
-        biased_counter(T ref)
+        biased_counter()
             : tid_(ThreadTraits::get_current_thread_id())
-            , refs_global_(ref)
-            , refs_local_(ref)
+            , refs_global_(1)
+            , refs_local_(1)
         {}
 
         void increment()

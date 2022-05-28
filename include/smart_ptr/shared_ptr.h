@@ -16,7 +16,11 @@ namespace smart_ptr
 {
     template < typename T, typename Counter > class shared_ptr
     {
-        template < typename T, typename Counter, typename... Args > friend shared_ptr< T, Counter > make_shared(Args&&... args);
+        template < typename T, typename Allocator, typename Counter, typename... Args > friend shared_ptr< T, Counter > allocate_shared(Allocator&&, Args&&...);
+
+        shared_ptr(control_block< T, Counter, std::allocator< T >, default_destructor< T >, true >* cb)
+            : cb_(cb)
+        {}
 
     public:
         using element_type = T;
@@ -25,18 +29,18 @@ namespace smart_ptr
         constexpr shared_ptr(std::nullptr_t) noexcept {}
 
         template < typename Y > explicit shared_ptr(Y* ptr)
-            : cb_(control_block< T, Counter, std::allocator< void >, default_deleter< T > >::template allocate(
-                std::allocator< void >(), default_deleter< T >(), ptr, 1))
+            : cb_(control_block< T, Counter, std::allocator< T >, default_deleter< T >, false >::template allocate(
+                std::allocator< T >(), default_deleter< T >(), ptr))
         {}
 
         template< typename Y, class Deleter > shared_ptr(Y* ptr, Deleter&& deleter)
-            : cb_(control_block< T, Counter, std::allocator< void >, Deleter >::template allocate(
-                std::allocator< void >(), std::forward< Deleter >(deleter), ptr, 1))
+            : cb_(control_block< T, Counter, std::allocator< T >, Deleter, false >::template allocate(
+                std::allocator< T >(), std::forward< Deleter >(deleter), ptr))
         {}
 
         template< typename Y, class Deleter, class Allocator > shared_ptr(Y* ptr, Deleter&& deleter, Allocator&& alloc)
-            : cb_(control_block< T, Counter, Allocator, Deleter >::template allocate(
-                std::forward< Allocator >(alloc), std::forward< Deleter >(deleter), ptr, 1))
+            : cb_(control_block< T, Counter, Allocator, Deleter, false >::template allocate(
+                std::forward< Allocator >(alloc), std::forward< Deleter >(deleter), ptr))
         {}
 
         shared_ptr(const shared_ptr< T, Counter >& other)
@@ -55,32 +59,31 @@ namespace smart_ptr
             decrement();
             cb_ = other.cb_;
             increment();
-
             return *this;
         }
 
         T* operator ->()
         {
             assert(cb_);
-            return cb_->ptr;
+            return cb_->get_ptr();
         }
 
         const T* operator ->() const
         {
             assert(cb_);
-            return cb_->ptr;
+            return cb_->get_ptr();
         }
 
         T& operator *()
         {
             assert(cb_);
-            return cb_->ptr;
+            return cb_->get_ptr();
         }
 
         const T& operator *() const
         {
             assert(cb_);
-            return cb_->ptr;
+            return cb_->get_ptr();
         }
 
     private:
@@ -88,13 +91,13 @@ namespace smart_ptr
         {
             if(cb_)
             {
-                cb_->counter.increment();
+                cb_->increment();
             }
         }
 
         void decrement()
         {
-            if (cb_ && cb_->counter.decrement())
+            if (cb_ && cb_->decrement())
             {
                 cb_->deallocate();
                 cb_ = nullptr;
@@ -104,8 +107,17 @@ namespace smart_ptr
         control_block_base< T, Counter >* cb_{};
     };
 
-    template < typename T, typename Counter, typename... Args > shared_ptr< T, Counter > make_shared(Args&&... args)
+    template < typename T, typename Counter, typename... Args >
+    shared_ptr< T, Counter > make_shared(Args&&... args)
     {
-        return shared_ptr< T, Counter >(new T(std::forward< Args >(args)...));
+        return allocate_shared< T, std::allocator< T >, Counter >(std::allocator< T >(), std::forward< Args >(args)...);
+    }
+
+    template < typename T, typename Allocator, typename Counter, typename... Args >
+    shared_ptr< T, Counter > allocate_shared(Allocator&& allocator, Args&&... args)
+    {
+        return shared_ptr< T, Counter >(control_block< T, Counter, Allocator, default_destructor< T >, true >::template allocate(
+            std::forward< Allocator >(allocator), default_destructor< T >(), std::forward< Args >(args)...
+        ));
     }
 }
