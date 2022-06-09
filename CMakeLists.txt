@@ -18,7 +18,7 @@ FetchContent_Declare(googletest
 FetchContent_Declare(benchmark
         GIT_REPOSITORY https://github.com/google/benchmark.git
         GIT_TAG master) 
-        
+       
 set(BENCHMARK_ENABLE_TESTING off)
 if(WIN32)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -33,6 +33,8 @@ target_sources(smart_ptr INTERFACE
     include/smart_ptr/detail/control_block.h
     include/smart_ptr/detail/shared_counter.h
     include/smart_ptr/detail/biased_counter.h
+    include/smart_ptr/detail/thread_cache.h
+    include/smart_ptr/detail/thread_counter.h
     include/smart_ptr/detail/thread_traits.h
     readme.md
 )
