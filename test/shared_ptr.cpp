@@ -8,15 +8,18 @@
 #include <smart_ptr/shared_ptr.h>
 #include <smart_ptr/detail/shared_counter.h>
 #include <smart_ptr/detail/biased_counter.h>
+#include <smart_ptr/detail/thread_counter.h>
+#include <smart_ptr/detail/thread_cache.h>
 
 #include <gtest/gtest.h>
 #include <memory>
 
 using shared_ptr_types = ::testing::Types<
-    std::shared_ptr< int >,
-    smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, false > >,
-    smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > >,
-    smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t > >
+    std::shared_ptr< int >
+    , smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, false > >
+    , smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > >
+    , smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t > >
+    , smart_ptr::shared_ptr< int, smart_ptr::thread_counter< uint64_t, smart_ptr::thread_cache< uintptr_t, uint64_t, 8 > > >
 >;
 
 template <typename T> struct shared_ptr_test: public testing::Test {};
@@ -33,5 +36,5 @@ TYPED_TEST(shared_ptr_test, ctor)
 
 TEST(shared_ptr_test, make_shared)
 {
-    smart_ptr::make_shared< int, smart_ptr::shared_counter< uint32_t, true > >(1);
+    smart_ptr::make_shared< int, smart_ptr::shared_counter< uint64_t, true > >(1);
 }

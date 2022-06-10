@@ -18,17 +18,18 @@
 
 namespace smart_ptr
 {
+    const size_t collector_queue_size = 1 << 12;
     using collector_message = void*; //std::pair< void*, bool >;
-    using collector_queue_storage = queue::static_storage2< collector_message, 1 << 16 >;
+    using collector_queue_storage = queue::static_storage2< collector_message, collector_queue_size >;
     using collector_queue = queue::bounded_queue_spsc3< collector_message, collector_queue_storage >;
-
+    
     template < typename T > struct collector
     {
         collector()
         {
             thread_ = std::thread([&]
             {
-                std::array< collector_message, 1 << 15 > messages;
+                std::array< collector_message, collector_queue_size > messages;
 
                 while (!dtor_)
                 {
@@ -138,7 +139,7 @@ namespace smart_ptr
         return handle.value;
     }
 
-    template < typename T > struct thread_counter
+    template < typename T, typename ThreadCache > struct thread_counter
     {
         thread_counter()
         {
@@ -176,6 +177,6 @@ namespace smart_ptr
         }
 
     private:
-        thread_cache< uintptr_t, T, 8 > cache_;
+        ThreadCache cache_;
     };
 }
