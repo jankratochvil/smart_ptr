@@ -22,16 +22,46 @@ namespace smart_ptr
     using collector_message = uintptr_t;
     using collector_queue_storage = queue::static_storage2< collector_message, collector_queue_size >;
     using collector_queue = queue::bounded_queue_spsc3< collector_message, collector_queue_storage >;
-    
-    template < typename T > struct collector
+
+    struct collector
     {
+        template < typename T > struct handle
+        {
+            template < typename... Args > handle(Args&&... args)
+                : value(std::forward< Args >(args)...)
+            {
+                instance().register_queue(value);
+            }
+
+            ~handle()
+            {
+                instance().remove_queue(value);
+            }
+
+            T value;
+        };
+
+        static collector& instance()
+        {
+            static collector value;
+            return value;
+        }
+
+        static auto& queue()
+        {
+            static thread_local collector_queue_storage storage;
+            static thread_local handle< collector_queue > handle(storage);
+            return handle.value;
+        }
+
         collector()
         {
             thread_ = std::thread([&]
             {
-                std::array< collector_message, collector_queue_size > messages;
-
                 // This is all very crude...
+
+                std::array< collector_message, collector_queue_size > messages;
+                std::vector< control_block_dtor* > zeroes;
 
                 while (!dtor_)
                 {
@@ -55,14 +85,19 @@ namespace smart_ptr
                                 {
                                     assert(cnt >= 0);
                                     cnt -= 1;
+                                    if (cnt == 0)
+                                    {
+                                        zeroes.push_back(ptr);
+                                    }
                                 }
                             }
                         }
                     }
-
-                    // TODO: Walk only zeroes.
-                    for (auto it = control_blocks_.begin(); it != control_blocks_.end();)
+                    
+                    for (auto ptr: zeroes)
                     {
+                        auto it = control_blocks_.find(ptr);
+                        assert(it != control_blocks_.end());
                         if (it->second == 0)
                         {
                             it->first->deallocate();
@@ -73,13 +108,16 @@ namespace smart_ptr
                             ++it;
                         }
                     }
+
+                    zeroes.clear();
                 }
             });
         }
 
         ~collector()
         {
-            dtor_ = false;
+            // TODO: delete the remaining control blocks
+            dtor_ = true;
             thread_.join();
         }
 
@@ -103,49 +141,22 @@ namespace smart_ptr
     private:
         std::mutex mutex_;
         std::thread thread_;
-        std::atomic< bool > dtor_;
+        std::atomic< bool > dtor_ = false;
 
         // TODO: if this is shared_ptr, we can unlock while processing.
         // But as it is thread local, no threads can go during that time.
+        // Even better would be for collector to own the queues and threads would
+        // just borrow them.
         std::vector< collector_queue* > queues_;
 
         std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
     };
 
-    template < typename T > struct collector_queue_handle
-    {
-        template < typename... Args > collector_queue_handle(Args&&... args)
-            : value(std::forward< Args >(args)...)
-        {
-            get_collector().register_queue(value);
-        }
-
-        ~collector_queue_handle()
-        {
-            get_collector().remove_queue(value);
-        }
-
-        static collector< T >& get_collector()
-        {
-            static collector< T > value;
-            return value;
-        }
-
-        T value;
-    };
-
-    template< typename T > auto& get_collector_queue()
-    {
-        static thread_local collector_queue_storage storage;
-        static thread_local collector_queue_handle< collector_queue > handle(storage);
-        return handle.value;
-    }
-
     template < typename T, typename ThreadCache > struct thread_counter
     {
         thread_counter(control_block_dtor* cb)
         {
-            get_collector_queue< void >().push((uintptr_t)cb & 1);
+            collector::queue().push((uintptr_t)cb & 1);
         }
 
         ~thread_counter()
@@ -154,20 +165,20 @@ namespace smart_ptr
         void increment(control_block_dtor* cb)
         {
             // It would be interesting to be able to use LRU eviction here. But that is complicated because of
-            // refcounts kept on two places. Now it is either in the cache or in the collector and cannot move once placed.
+            // refcounts would be kept on two places. Now they are either in the cache or in the collector and cannot move once placed.
             auto index = cache_.get((uintptr_t)this);
             if (index != cache_.end())
             {
                 if (cache_[index]++ == 0)
                 {
                     // Very slow on this place.
-                    //get_collector_queue< control_block_base< uint64_t, thread_counter > >().push(cb);
+                    //collector::queue().push(cb);
                 }
 
                 return;
             }
             
-            get_collector_queue< void >().push((uintptr_t)cb & 1);
+            collector::queue().push((uintptr_t)cb & 1);
         }
 
         bool decrement(control_block_dtor* cb)
@@ -181,7 +192,7 @@ namespace smart_ptr
                 cache_.erase(index);
             }
 
-            get_collector_queue< void >().push((uintptr_t)cb);
+            collector::queue().push((uintptr_t)cb);
 
             // Always return false as the destruction is done from collector thread.
             return false;
