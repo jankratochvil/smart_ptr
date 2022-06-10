@@ -12,6 +12,8 @@
 
 #include <smart_ptr/detail/control_block.h>
 
+#include <cassert>
+
 namespace smart_ptr
 {
     template < typename T, typename Counter > class shared_ptr
@@ -94,6 +96,18 @@ namespace smart_ptr
         }
 
         const T& operator *() const
+        {
+            assert(cb_);
+            return cb_->get_ptr();
+        }
+
+        T* get()
+        {
+            assert(cb_);
+            return cb_->get_ptr();
+        }
+
+        const T* get() const
         {
             assert(cb_);
             return cb_->get_ptr();

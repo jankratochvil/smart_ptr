@@ -14,7 +14,9 @@
 #include <cassert>
 
 #include <smart_ptr/detail/thread_cache.h>
-// #include <smart_ptr/detail/shared_counter.h>
+
+#include <smart_ptr/shared_ptr.h>
+#include <smart_ptr/detail/shared_counter.h>
 
 #include <queue/queue.h>
 
@@ -66,7 +68,7 @@ namespace smart_ptr
 
                 while (!dtor_)
                 {
-                    std::vector< std::shared_ptr< collector_queue > > queues;
+                    std::vector< shared_ptr< collector_queue, shared_counter< uint64_t, true > > > queues;
 
                     {
                         std::lock_guard< std::mutex > lock(mutex_);
@@ -128,7 +130,7 @@ namespace smart_ptr
         collector_queue* acquire_queue()
         {
             std::lock_guard< std::mutex > lock(mutex_);
-            queues_.push_back(std::make_shared< collector_queue >());
+            queues_.push_back(make_shared< collector_queue, shared_counter< uint64_t, true > >());
             return queues_.back().get();
         }
 
@@ -147,9 +149,8 @@ namespace smart_ptr
         std::mutex mutex_;
         std::thread thread_;
         std::atomic< bool > dtor_ = false;
-
-        // TODO: use our own
-        std::vector< std::shared_ptr< collector_queue > > queues_;
+        
+        std::vector< shared_ptr< collector_queue, shared_counter< uint64_t, true > > > queues_;
 
         std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
     };

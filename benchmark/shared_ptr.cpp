@@ -5,6 +5,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 
+#if defined(_WIN32)
+    // TODO: move to cmake
+    #define _ENABLE_EXTENDED_ALIGNED_STORAGE // Specifically enable standard behavior
+#endif
+
 #include <smart_ptr/shared_ptr.h>
 #include <smart_ptr/detail/shared_counter.h>
 #include <smart_ptr/detail/biased_counter.h>
