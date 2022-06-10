@@ -61,70 +61,19 @@ namespace smart_ptr
         {
             thread_ = std::thread([&]
             {
-                // This is all very crude...
-
-                std::array< collector_message, collector_queue_size > messages;
-                std::vector< control_block_dtor* > zeroes;
-
                 while (!dtor_)
                 {
-                    std::vector< shared_ptr< collector_queue, shared_counter< uint64_t, true > > > queues;
-
-                    {
-                        std::lock_guard< std::mutex > lock(mutex_);
-                        queues = queues_;
-                    }
-                        
-                    for (auto& queue : queues)
-                    {
-                        auto size = queue->pop<false>(messages);
-                        for (size_t i = 0; i < size; ++i)
-                        {
-                            auto ptr = (control_block_dtor*)(messages[size] & ~1);
-                            auto inc = messages[size] & 1;
-                                
-                            auto& cnt = control_blocks_[ptr];
-                            if (inc)
-                            {
-                                cnt += 1;
-                            }
-                            else
-                            {
-                                assert(cnt >= 0);
-                                cnt -= 1;
-                                if (cnt == 0)
-                                {
-                                    zeroes.push_back(ptr);
-                                }
-                            }
-                        }
-                    }
-                    
-                    for (auto ptr: zeroes)
-                    {
-                        auto it = control_blocks_.find(ptr);
-                        assert(it != control_blocks_.end());
-                        if (it->second == 0)
-                        {
-                            it->first->deallocate();
-                            it = control_blocks_.erase(it);
-                        }
-                        else
-                        {
-                            ++it;
-                        }
-                    }
-
-                    zeroes.clear();
+                    drain();
                 }
             });
         }
 
         ~collector()
-        {
-            // TODO: delete the remaining control blocks
+        {            
             dtor_ = true;
             thread_.join();
+
+            while(drain());
         }
 
         collector_queue* acquire_queue()
@@ -143,16 +92,75 @@ namespace smart_ptr
             {
                 queues_.erase(it);
             }
+
+            // TODO: the queue needs to be drained before complete removal
         }
 
     private:
+        size_t drain()
+        {
+            std::vector< shared_ptr< collector_queue, shared_counter< uint64_t, true > > > queues;
+
+            {
+                // During this lock, threads cannot join or exit the collector.
+                std::lock_guard< std::mutex > lock(mutex_);
+                queues = queues_;
+            }
+
+            for (auto& queue : queues)
+            {
+                auto size = queue->pop<false>(tmp_messages_);
+                for (size_t i = 0; i < size; ++i)
+                {
+                    auto ptr = (control_block_dtor*)(tmp_messages_[size] & ~1);
+                    auto inc = tmp_messages_[size] & 1;
+
+                    auto& cnt = control_blocks_[ptr];
+                    if (inc)
+                    {
+                        cnt += 1;
+                    }
+                    else
+                    {
+                        assert(cnt >= 0);
+                        cnt -= 1;
+                        if (cnt == 0)
+                        {
+                            tmp_zeroes_.push_back(ptr);
+                        }
+                    }
+                }
+            }
+
+            size_t deallocated = 0;
+            for (auto ptr : tmp_zeroes_)
+            {
+                auto it = control_blocks_.find(ptr);
+                assert(it != control_blocks_.end());
+                if (it->second == 0)
+                {
+                    it->first->deallocate();
+                    it = control_blocks_.erase(it);
+                    ++deallocated;
+                }
+                else
+                {
+                    ++it;
+                }
+            }
+
+            tmp_zeroes_.clear();
+            return deallocated;
+        }
+
         std::mutex mutex_;
         std::thread thread_;
         std::atomic< bool > dtor_ = false;
-        
         std::vector< shared_ptr< collector_queue, shared_counter< uint64_t, true > > > queues_;
-
         std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
+        
+        std::array< collector_message, collector_queue_size > tmp_messages_;
+        std::vector< control_block_dtor* > tmp_zeroes_;
     };
 
     template < typename T, typename ThreadCache > struct thread_counter
