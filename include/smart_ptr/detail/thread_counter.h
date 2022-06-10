@@ -24,8 +24,17 @@ namespace smart_ptr
 {
     const size_t collector_queue_size = 1 << 12;
     using collector_message = uintptr_t;
-    using collector_queue_storage = queue::static_storage2< collector_message, collector_queue_size >;
-    using collector_queue = queue::bounded_queue_spsc3< collector_message, collector_queue_storage >;
+    
+    class collector_queue: public queue::bounded_queue_spsc3< collector_message, queue::static_storage2< collector_message, collector_queue_size > >
+    {
+    public:
+        void set_released(bool released) { released_ = released; }
+        bool is_released() const { return released_; }
+    private:
+        bool released_ = false;
+    };
+
+    using collector_queue_ptr = shared_ptr< collector_queue, shared_counter< uint64_t, true > >;
 
     struct collector
     {
@@ -79,6 +88,7 @@ namespace smart_ptr
         collector_queue* acquire_queue()
         {
             std::lock_guard< std::mutex > lock(mutex_);
+
             queues_.push_back(make_shared< collector_queue, shared_counter< uint64_t, true > >());
             return queues_.back().get();
         }
@@ -86,28 +96,27 @@ namespace smart_ptr
         void release_queue(collector_queue* queue)
         {
             std::lock_guard< std::mutex > lock(mutex_);
+
             auto it = std::find_if(queues_.begin(), queues_.end(), [=](auto value){ return value.get() == queue; });
             assert(it != queues_.end());
-            if (it != queues_.end())
-            {
-                queues_.erase(it);
-            }
-
-            // TODO: the queue needs to be drained before complete removal
+            (*it)->set_released(true);
         }
 
     private:
         size_t drain()
         {
-            std::vector< shared_ptr< collector_queue, shared_counter< uint64_t, true > > > queues;
-
             {
                 // During this lock, threads cannot join or exit the collector.
                 std::lock_guard< std::mutex > lock(mutex_);
-                queues = queues_;
+
+                // Copy all queues
+                tmp_queues_ = queues_;
+
+                // Remove released queues from queues_. This will drain them one last time.
+                queues_.erase(std::remove_if(queues_.begin(), queues_.end(), [](auto queue) { return queue->is_released(); }), queues_.end());
             }
 
-            for (auto& queue : queues)
+            for (auto& queue : tmp_queues_)
             {
                 auto size = queue->pop<false>(tmp_messages_);
                 for (size_t i = 0; i < size; ++i)
@@ -153,14 +162,19 @@ namespace smart_ptr
             return deallocated;
         }
 
-        std::mutex mutex_;
+        // Accessed from multiple threads
+        alignas(64) std::mutex mutex_;
         std::thread thread_;
         std::atomic< bool > dtor_ = false;
-        std::vector< shared_ptr< collector_queue, shared_counter< uint64_t, true > > > queues_;
-        std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
-        
-        std::array< collector_message, collector_queue_size > tmp_messages_;
+        std::vector< collector_queue_ptr > queues_;
+
+        // Accessed from single thread
+        alignas(64) std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
+
+        // Temporary data
         std::vector< control_block_dtor* > tmp_zeroes_;
+        std::vector< collector_queue_ptr > tmp_queues_;
+        std::array< collector_message, collector_queue_size > tmp_messages_;
     };
 
     template < typename T, typename ThreadCache > struct thread_counter
@@ -202,7 +216,7 @@ namespace smart_ptr
 
                 cache_.erase(index);
             }
-
+            
             collector::queue().push((uintptr_t)cb);
 
             // Always return false as the destruction is done from collector thread.
