@@ -48,9 +48,8 @@ namespace smart_ptr
         }
 
         static auto& queue()
-        {
-            static thread_local collector_queue_storage storage;
-            static thread_local handle< collector_queue > handle(storage);
+        {            
+            static thread_local handle< collector_queue > handle;
             return handle.value;
         }
 
@@ -70,7 +69,7 @@ namespace smart_ptr
 
                         for (auto& queue : queues_)
                         {
-                            auto size = queue->pop(messages);
+                            auto size = queue->pop<false>(messages);
                             for (size_t i = 0; i < size; ++i)
                             {
                                 auto ptr = (control_block_dtor*)(messages[size] & ~1);
