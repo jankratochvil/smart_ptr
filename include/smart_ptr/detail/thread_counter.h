@@ -14,6 +14,8 @@
 #include <cassert>
 
 #include <smart_ptr/detail/thread_cache.h>
+// #include <smart_ptr/detail/shared_counter.h>
+
 #include <queue/queue.h>
 
 namespace smart_ptr
@@ -30,12 +32,12 @@ namespace smart_ptr
             template < typename... Args > handle(Args&&... args)
                 : value(std::forward< Args >(args)...)
             {
-                instance().register_queue(value);
+                value = instance().acquire_queue();
             }
 
             ~handle()
             {
-                instance().remove_queue(value);
+                instance().release_queue(value);
             }
 
             T value;
@@ -49,8 +51,8 @@ namespace smart_ptr
 
         static auto& queue()
         {            
-            static thread_local handle< collector_queue > handle;
-            return handle.value;
+            static thread_local handle< collector_queue* > handle;
+            return *handle.value;
         }
 
         collector()
@@ -64,30 +66,33 @@ namespace smart_ptr
 
                 while (!dtor_)
                 {
+                    std::vector< std::shared_ptr< collector_queue > > queues;
+
                     {
                         std::lock_guard< std::mutex > lock(mutex_);
-
-                        for (auto& queue : queues_)
+                        queues = queues_;
+                    }
+                        
+                    for (auto& queue : queues)
+                    {
+                        auto size = queue->pop<false>(messages);
+                        for (size_t i = 0; i < size; ++i)
                         {
-                            auto size = queue->pop<false>(messages);
-                            for (size_t i = 0; i < size; ++i)
-                            {
-                                auto ptr = (control_block_dtor*)(messages[size] & ~1);
-                                auto inc = messages[size] & 1;
+                            auto ptr = (control_block_dtor*)(messages[size] & ~1);
+                            auto inc = messages[size] & 1;
                                 
-                                auto& cnt = control_blocks_[ptr];
-                                if (inc)
+                            auto& cnt = control_blocks_[ptr];
+                            if (inc)
+                            {
+                                cnt += 1;
+                            }
+                            else
+                            {
+                                assert(cnt >= 0);
+                                cnt -= 1;
+                                if (cnt == 0)
                                 {
-                                    cnt += 1;
-                                }
-                                else
-                                {
-                                    assert(cnt >= 0);
-                                    cnt -= 1;
-                                    if (cnt == 0)
-                                    {
-                                        zeroes.push_back(ptr);
-                                    }
+                                    zeroes.push_back(ptr);
                                 }
                             }
                         }
@@ -120,16 +125,17 @@ namespace smart_ptr
             thread_.join();
         }
 
-        void register_queue(collector_queue& queue)
+        collector_queue* acquire_queue()
         {
             std::lock_guard< std::mutex > lock(mutex_);
-            queues_.push_back(&queue);
+            queues_.push_back(std::make_shared< collector_queue >());
+            return queues_.back().get();
         }
 
-        void remove_queue(collector_queue& queue)
+        void release_queue(collector_queue* queue)
         {
             std::lock_guard< std::mutex > lock(mutex_);
-            auto it = std::find(queues_.begin(), queues_.end(), &queue);
+            auto it = std::find_if(queues_.begin(), queues_.end(), [=](auto value){ return value.get() == queue; });
             assert(it != queues_.end());
             if (it != queues_.end())
             {
@@ -142,11 +148,8 @@ namespace smart_ptr
         std::thread thread_;
         std::atomic< bool > dtor_ = false;
 
-        // TODO: if this is shared_ptr, we can unlock while processing.
-        // But as it is thread local, no threads can go during that time.
-        // Even better would be for collector to own the queues and threads would
-        // just borrow them.
-        std::vector< collector_queue* > queues_;
+        // TODO: use our own
+        std::vector< std::shared_ptr< collector_queue > > queues_;
 
         std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
     };

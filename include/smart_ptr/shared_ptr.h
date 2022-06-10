@@ -49,6 +49,12 @@ namespace smart_ptr
             increment();
         }
 
+        shared_ptr(shared_ptr< T, Counter >&& other)
+            : cb_(nullptr)
+        {
+            std::swap(cb_, other.cb_);
+        }
+
         ~shared_ptr()
         {
             decrement();
@@ -59,6 +65,13 @@ namespace smart_ptr
             decrement();
             cb_ = other.cb_;
             increment();
+            return *this;
+        }
+
+        shared_ptr< T, Counter >& operator = (shared_ptr< T, Counter >&& other)
+        {
+            decrement();
+            std::swap(cb_, other.cb_);
             return *this;
         }
 
