@@ -8,47 +8,41 @@
 #include <smart_ptr/shared_ptr.h>
 #include <smart_ptr/detail/shared_counter.h>
 #include <smart_ptr/detail/biased_counter.h>
+#include <smart_ptr/detail/thread_counter.h>
+#include <smart_ptr/detail/thread_cache.h>
 
 #include <benchmark/benchmark.h>
 
-BENCHMARK_MAIN();
-
 static const auto max_threads = std::thread::hardware_concurrency();
+static const auto max_ptrs = 8;
 
 template < typename T > static void shared_ptr_copy_ctor(benchmark::State& state)
 {
-    static T value1(new typename T::element_type());
-    static T value2(new typename T::element_type());
-    static T value3(new typename T::element_type());
-    static T value4(new typename T::element_type());
-    static T value5(new typename T::element_type());
-    static T value6(new typename T::element_type());
-    static T value7(new typename T::element_type());
-    static T value8(new typename T::element_type());
-    
+    const int values_size = 8;
+    static std::array< T, 8 > values = []()
+    {
+        std::array < T, 8 > values;
+        for(size_t i = 0; i < values.size(); ++i)
+            values[i] = T(new typename T::element_type());
+        return values;
+    }();
+
+    std::vector< T > ptrs(state.range(0));
     for (auto _ : state)
     {
-        T ptr1(value1);
-        T ptr2(value2);
-        T ptr3(value3);
-        T ptr4(value4);
-        T ptr5(value5);
-        T ptr6(value6);
-        T ptr7(value7);
-        T ptr8(value8);
-        T ptr9(value1);
-        T ptr10(value2);
-        T ptr11(value3);
-        T ptr12(value4);
-        T ptr13(value5);
-        T ptr14(value6);
-        T ptr15(value7);
-        T ptr16(value8);
+        for (auto i = 0; i < state.range(0); ++i)
+        {
+            ptrs[i] = values[i & (values.size())];
+        }
     }
+    state.SetBytesProcessed(state.iterations() * 16);
 }
 
-BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, false > >)->UseRealTime();
-BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, std::shared_ptr< int >)->ThreadRange(1, max_threads)->MeasureProcessCPUTime()->UseRealTime();
-BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t > >)->ThreadRange(1, max_threads)->MeasureProcessCPUTime()->UseRealTime();
-BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > >)->ThreadRange(1, max_threads)->UseRealTime();
+BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, std::shared_ptr< int >)->ThreadRange(1, max_threads)->UseRealTime()->Range(max_ptrs, max_ptrs);
+//BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, false > >)->UseRealTime()->Range(max_ptrs, max_ptrs);
+//BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::shared_counter< uint64_t, true > >)->ThreadRange(1, max_threads)->UseRealTime()->Range(max_ptrs, max_ptrs);
+//BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::biased_counter< uint64_t > >)->ThreadRange(1, max_threads)->UseRealTime()->Range(max_ptrs, max_ptrs);
+BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::thread_counter< uint64_t, smart_ptr::thread_cache< uintptr_t, uint64_t, 8 > > >)->ThreadRange(1, max_threads)->UseRealTime()->Range(max_ptrs, max_ptrs);
+BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, smart_ptr::shared_ptr< int, smart_ptr::thread_counter< uint64_t, smart_ptr::thread_cache2< uintptr_t, uint64_t, 8 > > >)->ThreadRange(1, max_threads)->UseRealTime()->Range(max_ptrs, max_ptrs);
 
+BENCHMARK_MAIN();

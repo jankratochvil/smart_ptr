@@ -15,16 +15,16 @@ namespace smart_ptr
 
     template < typename T > struct shared_counter< T, true >
     {
-        shared_counter()
+        shared_counter(void*)
             : refs_(1)
         {}
 
-        void increment()
+        void increment(void*)
         {
             ++refs_;
         }
 
-        bool decrement()
+        bool decrement(void*)
         {
             return --refs_ == 0;
         }
@@ -35,16 +35,16 @@ namespace smart_ptr
 
     template < typename T > struct shared_counter< T, false >
     {
-        shared_counter()
+        shared_counter(void*)
             : refs_(1)
         {}
 
-        void increment()
+        void increment(void*)
         {
             ++refs_;
         }
 
-        bool decrement()
+        bool decrement(void*)
         {
             return --refs_ == 0;
         }

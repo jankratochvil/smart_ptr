@@ -22,26 +22,33 @@ namespace smart_ptr
 
     template < typename T > struct default_destructor {};
 
-    template < typename T, typename Counter > class control_block_base
+    class control_block_dtor
     {
     public:
-        control_block_base() = default;
+        virtual ~control_block_dtor() {}
+        virtual void deallocate() = 0;
+    };
+
+    template < typename T, typename Counter > class control_block_base
+        : public control_block_dtor
+    {
+    public:
+        control_block_base()
+            : counter_(this)
+        {}
 
         control_block_base(T* ptr)
             : ptr_(p)
         {}
 
-        virtual ~control_block_base() {}
-        virtual void deallocate() = 0;
-
         void increment()
         {
-            counter_.increment();
+            counter_.increment(this);
         }
 
         bool decrement()
         {
-            return counter_.decrement();
+            return counter_.decrement(this);
         }       
 
         const T* get_ptr() const { return ptr_; }

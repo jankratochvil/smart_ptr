@@ -15,13 +15,13 @@ namespace smart_ptr
 {
     template < typename T, typename ThreadTraits = default_thread_traits > struct biased_counter
     {
-        biased_counter()
+        biased_counter(void*)
             : tid_(ThreadTraits::get_current_thread_id())
             , refs_global_(1)
             , refs_local_(1)
         {}
 
-        void increment()
+        void increment(void*)
         {
             if (tid_ == ThreadTraits::get_current_thread_id())
             {
@@ -33,7 +33,7 @@ namespace smart_ptr
             }
         }
 
-        bool decrement()
+        bool decrement(void*)
         {
             if (tid_ == ThreadTraits::get_current_thread_id())
             {

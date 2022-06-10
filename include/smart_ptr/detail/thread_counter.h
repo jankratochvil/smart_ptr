@@ -19,7 +19,7 @@
 namespace smart_ptr
 {
     const size_t collector_queue_size = 1 << 12;
-    using collector_message = void*; //std::pair< void*, bool >;
+    using collector_message = uintptr_t;
     using collector_queue_storage = queue::static_storage2< collector_message, collector_queue_size >;
     using collector_queue = queue::bounded_queue_spsc3< collector_message, collector_queue_storage >;
     
@@ -31,38 +31,41 @@ namespace smart_ptr
             {
                 std::array< collector_message, collector_queue_size > messages;
 
+                // This is all very crude...
+
                 while (!dtor_)
                 {
                     {
-                        /*
-                        std::vector< collector_queue* > queues;
-
-                        {
-                            
-                            queues = std::move(queues_);
-                        }
-                        */
-
                         std::lock_guard< std::mutex > lock(mutex_);
+
                         for (auto& queue : queues_)
-                        {                            
+                        {
                             auto size = queue->pop(messages);
                             for (size_t i = 0; i < size; ++i)
                             {
-                                //auto ptr = messages[size] & ~1;
-                                //auto inc = messages[size] & 1;
+                                auto ptr = (control_block_dtor*)(messages[size] & ~1);
+                                auto inc = messages[size] & 1;
+                                
+                                auto& cnt = control_blocks_[ptr];
+                                if (inc)
+                                {
+                                    cnt += 1;
+                                }
+                                else
+                                {
+                                    assert(cnt >= 0);
+                                    cnt -= 1;
+                                }
                             }
-
-                            // TODO: remember zeroes...
-                            //control_blocks_[element.first] += element.second ? 1 : -1;
                         }
                     }
-/*
-                    for (auto it = control_blocks_.begin(); it != control_blocks_.end(); ++it)
+
+                    // TODO: Walk only zeroes.
+                    for (auto it = control_blocks_.begin(); it != control_blocks_.end();)
                     {
                         if (it->second == 0)
-                        {                            
-                            //delete it->first;
+                        {
+                            it->first->deallocate();
                             it = control_blocks_.erase(it);
                         }
                         else
@@ -70,7 +73,6 @@ namespace smart_ptr
                             ++it;
                         }
                     }
-*/
                 }
             });
         }
@@ -107,7 +109,7 @@ namespace smart_ptr
         // But as it is thread local, no threads can go during that time.
         std::vector< collector_queue* > queues_;
 
-        std::unordered_map< void*, size_t > control_blocks_;
+        std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
     };
 
     template < typename T > struct collector_queue_handle
@@ -141,27 +143,34 @@ namespace smart_ptr
 
     template < typename T, typename ThreadCache > struct thread_counter
     {
-        thread_counter()
+        thread_counter(control_block_dtor* cb)
         {
-            get_collector_queue< control_block_base< uint64_t, thread_counter > >().push(this);
+            get_collector_queue< void >().push((uintptr_t)cb & 1);
         }
 
         ~thread_counter()
         {}
 
-        void increment()
+        void increment(control_block_dtor* cb)
         {
+            // It would be interesting to be able to use LRU eviction here. But that is complicated because of
+            // refcounts kept on two places. Now it is either in the cache or in the collector and cannot move once placed.
             auto index = cache_.get((uintptr_t)this);
             if (index != cache_.end())
             {
-                ++cache_[index];
+                if (cache_[index]++ == 0)
+                {
+                    // Very slow on this place.
+                    //get_collector_queue< control_block_base< uint64_t, thread_counter > >().push(cb);
+                }
+
                 return;
             }
-
-            get_collector_queue< control_block_base< uint64_t, thread_counter > >().push(this);
+            
+            get_collector_queue< void >().push((uintptr_t)cb & 1);
         }
 
-        bool decrement()
+        bool decrement(control_block_dtor* cb)
         {
             auto index = cache_.get((uintptr_t)this);
             if (index != cache_.end())
@@ -172,7 +181,9 @@ namespace smart_ptr
                 cache_.erase(index);
             }
 
-            get_collector_queue< control_block_base< uint64_t, thread_counter > >().push(this);
+            get_collector_queue< void >().push((uintptr_t)cb);
+
+            // Always return false as the destruction is done from collector thread.
             return false;
         }
 
