@@ -67,13 +67,21 @@ namespace smart_ptr
             return *handle.value;
         }
 
+        struct drain_state
+        {            
+            std::vector< collector_queue_ptr > queues;
+            std::vector< control_block_dtor* > zeroes;
+            std::array< collector_message, collector_queue_size > messages;
+        };    
+                
         collector()
         {
             thread_ = std::thread([&]
             {
+                drain_state state;
                 while (!dtor_)
                 {
-                    drain();
+                    drain(state);
                 }
             });
         }
@@ -83,7 +91,8 @@ namespace smart_ptr
             dtor_ = true;
             thread_.join();
 
-            while(drain());
+            drain_state state;
+            while(drain(state));
         }
 
         collector_queue* acquire_queue()
@@ -104,26 +113,26 @@ namespace smart_ptr
         }
 
     private:
-        size_t drain()
+        size_t drain(drain_state& state)
         {
             {
                 // During this lock, threads cannot join or exit the collector.
                 std::lock_guard< std::mutex > lock(mutex_);
 
                 // Copy all queues
-                tmp_queues_ = queues_;
+                state.queues = queues_;
 
                 // Remove released queues from queues_. This will drain them one last time.
                 queues_.erase(std::remove_if(queues_.begin(), queues_.end(), [](auto queue) { return queue->is_released(); }), queues_.end());
             }
 
-            for (auto& queue : tmp_queues_)
+            for (auto& queue : state.queues)
             {
-                auto size = queue->pop<false>(tmp_messages_);
+                auto size = queue->pop<false>(state.messages);
                 for (size_t i = 0; i < size; ++i)
                 {
-                    auto ptr = (control_block_dtor*)(tmp_messages_[size] & ~1);
-                    auto inc = tmp_messages_[size] & 1;
+                    auto ptr = (control_block_dtor*)(state.messages[size] & ~1);
+                    auto inc = state.messages[size] & 1;
 
                     auto& cnt = control_blocks_[ptr];
                     if (inc)
@@ -136,14 +145,14 @@ namespace smart_ptr
                         cnt -= 1;
                         if (cnt == 0)
                         {
-                            tmp_zeroes_.push_back(ptr);
+                            state.zeroes.push_back(ptr);
                         }
                     }
                 }
             }
 
             size_t deallocated = 0;
-            for (auto ptr : tmp_zeroes_)
+            for (auto ptr : state.zeroes)
             {
                 auto it = control_blocks_.find(ptr);
                 assert(it != control_blocks_.end());
@@ -159,7 +168,9 @@ namespace smart_ptr
                 }
             }
 
-            tmp_zeroes_.clear();
+            state.zeroes.clear();
+            state.queues.clear();
+
             return deallocated;
         }
 
@@ -171,11 +182,6 @@ namespace smart_ptr
 
         // Accessed from single thread
         alignas(64) std::unordered_map< control_block_dtor*, uint64_t > control_blocks_;
-
-        // Temporary data
-        std::vector< control_block_dtor* > tmp_zeroes_;
-        std::vector< collector_queue_ptr > tmp_queues_;
-        std::array< collector_message, collector_queue_size > tmp_messages_;
     };
 
     template < typename T, typename ThreadCache > struct thread_counter
