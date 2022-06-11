@@ -32,7 +32,8 @@ namespace smart_ptr
         {
             static thread_local thread_id id = []()
             {
-                return *reinterpret_cast<thread_id*>(&std::this_thread::get_id());
+		auto id = std::this_thread::get_id();
+                return *reinterpret_cast<thread_id*>(&id);
             }();
             return id;
         }

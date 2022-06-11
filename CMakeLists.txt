@@ -52,7 +52,7 @@ target_sources(smart_ptr INTERFACE
     include/smart_ptr/detail/thread_cache.h
     include/smart_ptr/detail/thread_counter.h
     include/smart_ptr/detail/thread_traits.h
-    readme.md
+    README.md
 )
 
 if(SMARTPTR_ENBALE_TESTING)
