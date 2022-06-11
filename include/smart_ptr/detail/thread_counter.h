@@ -232,7 +232,7 @@ namespace smart_ptr
             
             collector::instance().push((uintptr_t)cb);
 
-            // Always return false as the destruction is done from the collector thread.
+            // Always return false as the destruction is done from the collector thread
             return false;
         }
 
