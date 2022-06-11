@@ -12,6 +12,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cassert>
+#include <algorithm>
 
 #include <smart_ptr/detail/thread_cache.h>
 
