@@ -16,7 +16,7 @@ namespace smart_ptr
 {
     template < typename T, typename Counter > class shared_ptr
     {
-        template < typename T, typename Allocator, typename Counter, typename... Args > friend shared_ptr< T, Counter > allocate_shared(Allocator&&, Args&&...);
+        template < typename U, typename Allocator, typename CounterU, typename... Args > friend shared_ptr< U, CounterU > allocate_shared(Allocator&&, Args&&...);
 
         shared_ptr(control_block< T, Counter, std::allocator< T >, default_destructor< T >, true >* cb)
             : cb_(cb)
@@ -106,18 +106,18 @@ namespace smart_ptr
         
         control_block_base< T, Counter >* cb_{};
     };
-
-    template < typename T, typename Counter, typename... Args >
-    shared_ptr< T, Counter > make_shared(Args&&... args)
-    {
-        return allocate_shared< T, std::allocator< T >, Counter >(std::allocator< T >(), std::forward< Args >(args)...);
-    }
-
+    
     template < typename T, typename Allocator, typename Counter, typename... Args >
     shared_ptr< T, Counter > allocate_shared(Allocator&& allocator, Args&&... args)
     {
         return shared_ptr< T, Counter >(control_block< T, Counter, Allocator, default_destructor< T >, true >::template allocate(
             std::forward< Allocator >(allocator), default_destructor< T >(), std::forward< Args >(args)...
         ));
+    }
+
+    template < typename T, typename Counter, typename... Args >
+    shared_ptr< T, Counter > make_shared(Args&&... args)
+    {
+        return allocate_shared< T, std::allocator< T >, Counter >(std::allocator< T >(), std::forward< Args >(args)...);
     }
 }

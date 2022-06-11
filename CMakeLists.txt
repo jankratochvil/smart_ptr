@@ -34,7 +34,7 @@ target_sources(smart_ptr INTERFACE
     include/smart_ptr/detail/shared_counter.h
     include/smart_ptr/detail/biased_counter.h
     include/smart_ptr/detail/thread_traits.h
-    readme.md
+    README.md
 )
 
 add_executable(smart_ptr_test

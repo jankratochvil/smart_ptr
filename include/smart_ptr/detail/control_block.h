@@ -28,7 +28,7 @@ namespace smart_ptr
         control_block_base() = default;
 
         control_block_base(T* ptr)
-            : ptr_(p)
+            : ptr_(ptr)
         {}
 
         virtual ~control_block_base() {}
@@ -115,13 +115,15 @@ namespace smart_ptr
         )
             : control_block_allocator< allocator_type >(std::forward< AllocatorT >(allocator))
         {            
-            std::allocator_traits< allocator_type >::construct(get_allocator(), get_ptr(), std::forward< Args >(args)...);
+            auto&& al = this->get_allocator();
+	    std::allocator_traits< allocator_type >::construct(al, get_ptr(), std::forward< Args >(args)...);
             static_cast<Base*>(this)->set_ptr(get_ptr());
         }
 
         ~control_block_storage()
-        {            
-            std::allocator_traits< allocator_type >::destroy(get_allocator(), get_ptr());
+        {        
+	    auto&& al = this->get_allocator();
+            std::allocator_traits< allocator_type >::destroy(al, get_ptr());
         }
 
     public:
@@ -146,7 +148,7 @@ namespace smart_ptr
 
         ~control_block_storage()
         {
-            get_deleter()(static_cast<Base*>(this)->get_ptr());
+            this->get_deleter()(static_cast<Base*>(this)->get_ptr());
         }
     };
 
@@ -171,7 +173,7 @@ namespace smart_ptr
         static control_block< T, Counter, Allocator, Deleter, false >* allocate(AllocatorT&& allocator, DeleterT&& deleter, T* ptr)
         {
             allocator_type alloc(allocator);
-            auto cb = std::allocator_traits< allocator_type >::template allocate(alloc, 1);
+            auto cb = std::allocator_traits< allocator_type >::allocate(alloc, 1);
             std::allocator_traits< allocator_type >::template construct(
                 alloc, cb, std::forward< AllocatorT >(allocator), std::forward< DeleterT >(deleter), ptr);
             return cb;
@@ -181,7 +183,7 @@ namespace smart_ptr
         static control_block< T, Counter, Allocator, Deleter, true >* allocate(AllocatorT&& allocator, DeleterT&& deleter, Args&&... args)
         {
             allocator_type alloc(allocator);
-            auto cb = std::allocator_traits< allocator_type >::template allocate(alloc, 1);
+            auto cb = std::allocator_traits< allocator_type >::allocate(alloc, 1);
             std::allocator_traits< allocator_type >::template construct(
                 alloc, cb, std::forward< AllocatorT >(allocator), std::forward< DeleterT >(deleter), std::forward< Args >(args)...);
             return cb;
@@ -189,9 +191,9 @@ namespace smart_ptr
 
         void deallocate() override
         {
-            allocator_type alloc(get_allocator());
-            std::allocator_traits< allocator_type >::template destroy(alloc, this);
-            std::allocator_traits< allocator_type >::template deallocate(alloc, this, 1);
+            allocator_type alloc(this->get_allocator());
+            std::allocator_traits< allocator_type >::destroy(alloc, this);
+            std::allocator_traits< allocator_type >::deallocate(alloc, this, 1);
         }
     };
 }
