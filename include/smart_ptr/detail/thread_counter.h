@@ -37,43 +37,9 @@ namespace smart_ptr
 
     using collector_queue_ptr = shared_ptr< collector_queue, shared_counter< uint64_t, true > >;
 
-    struct collector
+    class collector
     {
-        template < typename T > struct handle
-        {
-            template < typename... Args > handle(Args&&... args)
-                : value(std::forward< Args >(args)...)
-            {
-                value = instance().acquire_queue();
-            }
-
-            ~handle()
-            {
-                instance().release_queue(value);
-            }
-
-            T value;
-        };
-
-        static collector& instance()
-        {
-            static collector value;
-            return value;
-        }
-
-        static auto& queue()
-        {            
-            static thread_local handle< collector_queue* > handle;
-            return *handle.value;
-        }
-
-        struct drain_state
-        {            
-            std::vector< collector_queue_ptr > queues;
-            std::vector< control_block_dtor* > zeroes;
-            std::array< collector_message, collector_queue_size > messages;
-        };    
-                
+    public:
         collector()
         {
             thread_ = std::thread([&]
@@ -95,6 +61,40 @@ namespace smart_ptr
             while(drain(state));
         }
 
+        static collector& instance()
+        {
+            static collector value;
+            return value;
+        }
+
+        void push(collector_message msg)
+        {
+            queue().push(msg);
+        }
+
+    private:
+        static collector_queue& queue()
+        {
+            static thread_local handle< collector_queue* > handle;
+            return *handle.value;
+        }
+
+        template < typename T > struct handle
+        {
+            template < typename... Args > handle(Args&&... args)
+                : value(std::forward< Args >(args)...)
+            {
+                value = instance().acquire_queue();
+            }
+
+            ~handle()
+            {
+                instance().release_queue(value);
+            }
+
+            T value;
+        };
+
         collector_queue* acquire_queue()
         {
             std::lock_guard< std::mutex > lock(mutex_);
@@ -107,12 +107,18 @@ namespace smart_ptr
         {
             std::lock_guard< std::mutex > lock(mutex_);
 
-            auto it = std::find_if(queues_.begin(), queues_.end(), [=](auto value){ return value.get() == queue; });
+            auto it = std::find_if(queues_.begin(), queues_.end(), [=](auto value) { return value.get() == queue; });
             assert(it != queues_.end());
             (*it)->set_released(true);
         }
 
-    private:
+        struct drain_state
+        {
+            std::vector< collector_queue_ptr > queues;
+            std::vector< control_block_dtor* > zeroes;
+            std::array< collector_message, collector_queue_size > messages;
+        };        
+
         size_t drain(drain_state& state)
         {
             {
@@ -188,7 +194,7 @@ namespace smart_ptr
     {
         thread_counter(control_block_dtor* cb)
         {
-            collector::queue().push((uintptr_t)cb & 1);
+            collector::instance().push((uintptr_t)cb & 1);
         }
 
         ~thread_counter()
@@ -210,7 +216,7 @@ namespace smart_ptr
                 return;
             }
             
-            collector::queue().push((uintptr_t)cb & 1);
+            collector::instance().push((uintptr_t)cb & 1);
         }
 
         bool decrement(control_block_dtor* cb)
@@ -224,9 +230,9 @@ namespace smart_ptr
                 cache_.erase(index);
             }
             
-            collector::queue().push((uintptr_t)cb);
+            collector::instance().push((uintptr_t)cb);
 
-            // Always return false as the destruction is done from collector thread.
+            // Always return false as the destruction is done from the collector thread.
             return false;
         }
 
