@@ -20,7 +20,7 @@
 
 static const auto max_threads = std::thread::hardware_concurrency() * 4;
 static const auto min_ptrs = 1;
-static const auto max_ptrs = 8;
+static const auto max_ptrs = 1;
 
 template < typename T > static void shared_ptr_copy_ctor(benchmark::State& state)
 {
@@ -33,15 +33,14 @@ template < typename T > static void shared_ptr_copy_ctor(benchmark::State& state
         return values;
     }();
 
-    std::vector< T > ptrs(state.range(0));
     for (auto _ : state)
     {
         for (auto i = 0; i < state.range(0); ++i)
         {
-            ptrs[i] = values[i & (values.size())];
+	    volatile T tmp = values[i & (values.size())];
         }
     }
-    state.SetBytesProcessed(state.iterations() * 16);
+    state.SetBytesProcessed(state.iterations());
 }
 
 BENCHMARK_TEMPLATE(shared_ptr_copy_ctor, std::shared_ptr< int >)->ThreadRange(1, max_threads)->UseRealTime()->Range(max_ptrs, max_ptrs);
