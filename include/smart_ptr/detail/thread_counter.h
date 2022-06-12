@@ -133,26 +133,29 @@ namespace smart_ptr
                 queues_.erase(std::remove_if(queues_.begin(), queues_.end(), [](auto queue) { return queue->is_released(); }), queues_.end());
             }
 
+            size_t size = 0;
             for (auto& queue : state.queues)
             {
-                auto size = queue->pop<false>(state.messages);
-                for (size_t i = 0; i < size; ++i)
+                while (size = queue->pop<false>(state.messages))
                 {
-                    auto ptr = (control_block_dtor*)(state.messages[size] & ~1);
-                    auto inc = state.messages[size] & 1;
+                    for (size_t i = 0; i < size; ++i)
+                    {
+                        auto ptr = (control_block_dtor*)(state.messages[size] & ~1);
+                        auto inc = state.messages[size] & 1;
 
-                    auto& cnt = control_blocks_[ptr];
-                    if (inc)
-                    {
-                        cnt += 1;
-                    }
-                    else
-                    {
-                        assert(cnt >= 0);
-                        cnt -= 1;
-                        if (cnt == 0)
+                        auto& cnt = control_blocks_[ptr];
+                        if (inc)
                         {
-                            state.zeroes.push_back(ptr);
+                            cnt += 1;
+                        }
+                        else
+                        {
+                            assert(cnt >= 0);
+                            cnt -= 1;
+                            if (cnt == 0)
+                            {
+                                state.zeroes.push_back(ptr);
+                            }
                         }
                     }
                 }
