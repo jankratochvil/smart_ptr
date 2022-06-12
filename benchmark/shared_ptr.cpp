@@ -37,7 +37,7 @@ template < typename T > static void copy_ctor(benchmark::State& state)
     {
         for (auto i = 0; i < state.range(0); ++i)
         {
-	    volatile T tmp = values[i & (values.size())];
+            volatile T tmp = values[i & (values.size())];
         }
     }
     state.SetBytesProcessed(state.iterations() * state.range(0));

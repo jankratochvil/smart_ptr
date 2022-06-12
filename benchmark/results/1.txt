@@ -1,0 +1,33 @@
+Run on (32 X 3394 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 512 KiB (x16)
+  L3 Unified 32768 KiB (x2)
+------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                              Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------------------------------------------
+copy_ctor<shared_ptr>/1/real_time/threads:1                         2.97 ns         2.96 ns    237175578 bytes_per_second=320.854M/s
+copy_ctor<shared_ptr>/1/real_time/threads:2                         18.0 ns         35.6 ns     38212210 bytes_per_second=53.0303M/s
+copy_ctor<shared_ptr>/1/real_time/threads:4                         19.0 ns         75.4 ns     37296992 bytes_per_second=50.274M/s
+copy_ctor<shared_ptr>/1/real_time/threads:8                         19.0 ns          152 ns     37856984 bytes_per_second=50.2632M/s
+copy_ctor<shared_ptr>/1/real_time/threads:16                        20.6 ns          334 ns     35237600 bytes_per_second=46.2329M/s
+copy_ctor<shared_ptr>/1/real_time/threads:32                        24.7 ns          789 ns     28513440 bytes_per_second=38.5669M/s
+copy_ctor<shared_ptr>/8/real_time/threads:1                         22.4 ns         22.6 ns     31046975 bytes_per_second=340.307M/s
+copy_ctor<shared_ptr>/8/real_time/threads:2                          150 ns          303 ns      4637242 bytes_per_second=50.8302M/s
+copy_ctor<shared_ptr>/8/real_time/threads:4                          151 ns          604 ns      4606868 bytes_per_second=50.3927M/s
+copy_ctor<shared_ptr>/8/real_time/threads:8                          152 ns         1200 ns      4805264 bytes_per_second=50.1429M/s
+copy_ctor<shared_ptr>/8/real_time/threads:16                         170 ns         2722 ns      4895616 bytes_per_second=44.8207M/s
+copy_ctor<shared_ptr>/8/real_time/threads:32                         205 ns         6547 ns      3508512 bytes_per_second=37.1582M/s
+copy_ctor<shared_ptr_thread_counter_1>/1/real_time/threads:1        3.82 ns         3.79 ns    185418626 bytes_per_second=249.664M/s
+copy_ctor<shared_ptr_thread_counter_1>/1/real_time/threads:2        1.91 ns         3.80 ns    362301588 bytes_per_second=498.955M/s
+copy_ctor<shared_ptr_thread_counter_1>/1/real_time/threads:4        1.17 ns         4.70 ns    714801984 bytes_per_second=814.782M/s
+copy_ctor<shared_ptr_thread_counter_1>/1/real_time/threads:8       0.514 ns         4.09 ns   1267782128 bytes_per_second=1.81176G/s
+copy_ctor<shared_ptr_thread_counter_1>/1/real_time/threads:16      0.433 ns         6.86 ns   1763675888 bytes_per_second=2.15264G/s
+copy_ctor<shared_ptr_thread_counter_1>/1/real_time/threads:32      0.310 ns         9.60 ns   2293610560 bytes_per_second=3.00198G/s
+copy_ctor<shared_ptr_thread_counter_1>/8/real_time/threads:1        25.9 ns         25.5 ns     26922414 bytes_per_second=294.399M/s
+copy_ctor<shared_ptr_thread_counter_1>/8/real_time/threads:2        13.1 ns         26.2 ns     53735944 bytes_per_second=584.113M/s
+copy_ctor<shared_ptr_thread_counter_1>/8/real_time/threads:4        6.74 ns         26.8 ns    104241340 bytes_per_second=1.10499G/s
+copy_ctor<shared_ptr_thread_counter_1>/8/real_time/threads:8        3.54 ns         28.5 ns    191023424 bytes_per_second=2.10184G/s
+copy_ctor<shared_ptr_thread_counter_1>/8/real_time/threads:16       2.69 ns         43.5 ns    285867392 bytes_per_second=2.76716G/s
+copy_ctor<shared_ptr_thread_counter_1>/8/real_time/threads:32       2.15 ns         66.0 ns    331852896 bytes_per_second=3.47297G/s
