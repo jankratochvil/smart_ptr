@@ -5,9 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS NO)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
 enable_testing()
-
 option(SMARTPTR_ENABLE_TESTING "enable testing through googletest" ON)
 option(SMARTPTR_ENABLE_BENCHMARK "enable benchmarking through googlebenchmark" ON)
 
@@ -30,6 +28,10 @@ if(SMARTPTR_ENABLE_BENCHMARK)
        
     set(BENCHMARK_ENABLE_TESTING off)
     FetchContent_MakeAvailable(benchmark)
+endif()
+
+if(NOT WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 endif()
 
 FetchContent_Declare(queue

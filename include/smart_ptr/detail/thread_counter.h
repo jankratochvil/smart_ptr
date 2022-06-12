@@ -18,6 +18,7 @@
 
 #include <smart_ptr/shared_ptr.h>
 #include <smart_ptr/detail/shared_counter.h>
+#include <new>
 
 #include <queue/queue.h>
 

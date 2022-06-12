@@ -11,6 +11,8 @@
 
 #if defined(_WIN32)
 #include <intrin.h>
+#else
+#include <immintrin.h>
 #endif
 
 namespace smart_ptr
@@ -37,7 +39,7 @@ namespace smart_ptr
         return _tzcnt_u32(bitmask);
     }
     */
-
+#if defined(__SSE4_2__)
     inline size_t find_index(const std::array< uint64_t, 8 >& values, uint64_t value)
     {
         __m256i v = _mm256_loadu_si256((const __m256i*)values.data());
@@ -46,6 +48,7 @@ namespace smart_ptr
         bitmask |= 1 << 16;
         return _tzcnt_u32(bitmask);
     }
+#endif
 /*
     inline size_t find_index_sse4(const std::array< uint64_t, 16 >& values, uint64_t value)
     {
