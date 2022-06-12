@@ -35,7 +35,8 @@ namespace smart_ptr
         bool released_ = false;
     };
 
-    using collector_queue_ptr = shared_ptr< collector_queue, shared_counter< uint64_t, true > >;
+    // Collector queue is not used without lock from different threads, so it uses non-atomic shared_ptr counter
+    using collector_queue_ptr = shared_ptr< collector_queue, shared_counter< uint64_t, false > >;
 
     class collector
     {
@@ -99,7 +100,7 @@ namespace smart_ptr
         {
             std::lock_guard< std::mutex > lock(mutex_);
 
-            queues_.push_back(make_shared< collector_queue, shared_counter< uint64_t, true > >());
+            queues_.push_back(make_shared< collector_queue, shared_counter< uint64_t, false > >());
             return queues_.back().get();
         }
 
