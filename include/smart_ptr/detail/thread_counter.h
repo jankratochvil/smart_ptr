@@ -7,20 +7,19 @@
 
 #pragma once
 
+#include <smart_ptr/detail/thread_cache.h>
+#include <smart_ptr/shared_ptr.h>
+#include <smart_ptr/detail/shared_counter.h>
+
+#include <queue/queue.h>
+
 #include <thread>
 #include <mutex>
 #include <vector>
 #include <unordered_map>
 #include <cassert>
 #include <algorithm>
-
-#include <smart_ptr/detail/thread_cache.h>
-
-#include <smart_ptr/shared_ptr.h>
-#include <smart_ptr/detail/shared_counter.h>
 #include <new>
-
-#include <queue/queue.h>
 
 namespace smart_ptr
 {

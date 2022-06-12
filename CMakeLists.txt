@@ -30,10 +30,6 @@ if(SMARTPTR_ENABLE_BENCHMARK)
     FetchContent_MakeAvailable(benchmark)
 endif()
 
-if(NOT WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-endif()
-
 FetchContent_Declare(queue
     GIT_REPOSITORY git@github.com:romanpauk/queue.git
     GIT_TAG develop)
@@ -74,4 +70,10 @@ if(SMARTPTR_ENABLE_BENCHMARK)
 
     target_link_libraries(smart_ptr_benchmark smart_ptr benchmark::benchmark queue)
     target_include_directories(smart_ptr_benchmark PRIVATE benchmark)
+
+    if(MSVC)
+        target_compile_options(smart_ptr_benchmark PRIVATE /arch:AVX2)
+    else()
+        target_compile_options(smart_ptr_benchmark PRIVATE -march=native)
+    endif()
 endif()

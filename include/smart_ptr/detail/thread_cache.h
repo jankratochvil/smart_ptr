@@ -8,12 +8,7 @@
 #pragma once
 
 #include <array>
-
-#if defined(_WIN32)
-#include <intrin.h>
-#else
 #include <immintrin.h>
-#endif
 
 namespace smart_ptr
 {
@@ -29,17 +24,7 @@ namespace smart_ptr
         return values.size();
     }
 
-    /*
-    inline size_t find_index_sse4(const std::array< uint32_t, 16 >& values, uint32_t value)
-    {
-        __m256i v = _mm256_loadu_si256((const __m256i*)values.data());
-        __m256i vcmp = _mm256_cmpeq_epi32(v, _mm256_set1_epi32(value));
-        unsigned bitmask = _mm256_movemask_ps(_mm256_castsi256_ps(vcmp));
-        bitmask |= 1 << 16;
-        return _tzcnt_u32(bitmask);
-    }
-    */
-#if defined(__SSE4_2__)
+#if defined(__AVX2__)
     inline size_t find_index(const std::array< uint64_t, 8 >& values, uint64_t value)
     {
         __m256i v = _mm256_loadu_si256((const __m256i*)values.data());
@@ -49,24 +34,6 @@ namespace smart_ptr
         return _tzcnt_u32(bitmask);
     }
 #endif
-/*
-    inline size_t find_index_sse4(const std::array< uint64_t, 16 >& values, uint64_t value)
-    {
-        __m256i v = _mm256_loadu_si256((const __m256i*)values.data());
-        __m256i vcmp = _mm256_cmpeq_epi64(v, _mm256_set1_epi64x(value));
-        unsigned bitmask = _mm256_movemask_ps(_mm256_castsi256_ps(vcmp));
-        bitmask |= 1 << 16;
-        bitmask = _tzcnt_u32(bitmask);
-        if(_tzcnt_u32(bitmask) < 16)
-            return bitmask;
-
-        v = _mm256_loadu_si256((const __m256i*)values.data() + 8 * sizeof(uint64_t));
-        vcmp = _mm256_cmpeq_epi64(v, _mm256_set1_epi64x(value));
-        bitmask = _mm256_movemask_ps(_mm256_castsi256_ps(vcmp));
-        bitmask |= 1 << 16;
-        return _tzcnt_u32(bitmask);
-    }
- */
 
     template < typename Key, typename Value, size_t N > class thread_cache
     {
