@@ -1,6 +1,6 @@
-project(smart_ptr)
+cmake_minimum_required(VERSION 3.22)
+project(smart_ptr VERSION 0.1)
 include(FetchContent)
-cmake_minimum_required(VERSION 3.19)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS NO)
@@ -53,7 +53,7 @@ target_sources(smart_ptr INTERFACE
     README.md
 )
 
-if(SMARTPTR_ENBALE_TESTING)
+if(SMARTPTR_ENABLE_TESTING)
     add_executable(smart_ptr_test
         test/shared_ptr.cpp
     )

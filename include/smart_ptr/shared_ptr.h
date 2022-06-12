@@ -4,9 +4,6 @@
 // See LICENSE for license and copyright information
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Based on the article "Biased reference counting: minimizing atomic operations in garbage collection"
-// available at: https://dl.acm.org/doi/pdf/10.1145/3243176.3243195
-//
 
 #pragma once
 
