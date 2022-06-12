@@ -26,7 +26,7 @@ namespace smart_ptr
     const size_t collector_queue_size = 1 << 12;
     using collector_message = uintptr_t;
     
-    class collector_queue: public queue::bounded_queue_spsc3< collector_message, queue::static_storage2< collector_message, collector_queue_size > >
+    class collector_queue: public queue::bounded_queue_spsc2< collector_message, queue::static_storage< collector_message, collector_queue_size > >
     {
     public:
         void set_released(bool released) { released_ = released; }
