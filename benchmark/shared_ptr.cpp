@@ -51,10 +51,10 @@ using shared_ptr_thread_counter_1 = smart_ptr::shared_ptr< int, smart_ptr::threa
 using shared_ptr_thread_counter_2 = smart_ptr::shared_ptr< int, smart_ptr::thread_counter< uint64_t, smart_ptr::thread_cache2< uintptr_t, uint64_t, 8 > > >;
 
 BENCHMARK_TEMPLATE(copy_ctor, shared_ptr)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
-//BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_shared_counter_st)->UseRealTime()->Range(min_ptrs, max_ptrs);
-//BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_shared_counter_mt)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
-//BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_biased_counter)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
+BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_shared_counter_st)->UseRealTime()->Range(min_ptrs, max_ptrs);
+BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_shared_counter_mt)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
+BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_biased_counter)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
 BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_thread_counter_1)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
-//BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_thread_counter_2)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
+BENCHMARK_TEMPLATE(copy_ctor, shared_ptr_thread_counter_2)->ThreadRange(1, max_threads)->UseRealTime()->Range(min_ptrs, max_ptrs);
 
 BENCHMARK_MAIN();
