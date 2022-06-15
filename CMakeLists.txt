@@ -58,7 +58,7 @@ if(SMARTPTR_ENABLE_TESTING)
         test/shared_ptr.cpp
     )
 
-    add_test(smart_ptr_test COMMAND smart_ptr_test)
+    add_test(NAME smart_ptr_test COMMAND smart_ptr_test)
     target_link_libraries(smart_ptr_test smart_ptr gtest_main queue)
     target_include_directories(smart_ptr_test PRIVATE test)
 endif()
