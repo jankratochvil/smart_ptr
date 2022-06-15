@@ -31,7 +31,7 @@ if(SMARTPTR_ENABLE_BENCHMARK)
 endif()
 
 FetchContent_Declare(queue
-    GIT_REPOSITORY git@github.com:romanpauk/queue.git
+    GIT_REPOSITORY https://github.com/romanpauk/queue.git
     GIT_TAG develop)
 
 set(QUEUE_ENABLE_TESTING OFF)
